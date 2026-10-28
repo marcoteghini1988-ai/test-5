@@ -1,0 +1,7 @@
+ECLISSI STELLARE R9.3 - PROGETTO COMPLETO PULITO
+
+Contiene src/, public/ e configurazione Vite. Non contiene documenti storici, strumenti di test o file di prova.
+
+Importare il contenuto mantenendo le cartelle src e public. Consigliato creare un repository nuovo e vuoto, anziche sovrapporre i file a test4 (che contiene copie fuori cartella).
+
+PvP simulato offline, senza Firebase.
