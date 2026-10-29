@@ -2328,6 +2328,46 @@ export default function ClassicBattleView({
   const [selectedHardpointIndex, setSelectedHardpointIndex] = useState(0);
   const [cardsPlayedThisTurn, setCardsPlayedThisTurn] = useState(0);
 
+  // Posiziona i pannelli giocatore dietro la mano: bordo inferiore a meta' carta.
+  // Misura in coordinate schermo e converte in coordinate locali della plancia scalata.
+  const playerWeaponPanelsRef = useRef(null);
+  const playerHandRackRef = useRef(null);
+  useEffect(() => {
+    let frame = 0;
+    const update = () => {
+      const panels = playerWeaponPanelsRef.current;
+      const hand = playerHandRackRef.current;
+      if (!panels || !hand) return;
+      const card = hand.querySelector('.card-unit-station');
+      if (!card) return;
+      // Misura la posizione originale, evitando di sommare traslazioni successive.
+      panels.style.transform = 'none';
+      const panelRect = panels.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      const viewport = panels.closest('.battle-viewport-classic');
+      const viewportRect = viewport?.getBoundingClientRect();
+      const screenScale = viewport && viewportRect && viewport.offsetWidth
+        ? viewportRect.width / viewport.offsetWidth : 1;
+      const targetBottom = cardRect.top + cardRect.height / 2;
+      const offset = (targetBottom - panelRect.bottom) / (screenScale || 1);
+      panels.style.transform = `translateY(${Math.round(offset)}px)`;
+    };
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
+    schedule();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(schedule) : null;
+    if (observer && playerHandRackRef.current) observer.observe(playerHandRackRef.current);
+    window.addEventListener('resize', schedule);
+    // La mano puo' comparire dopo la distribuzione iniziale delle carte.
+    const handObserver = typeof MutationObserver !== 'undefined'
+      ? new MutationObserver(schedule) : null;
+    if (handObserver && playerHandRackRef.current) handObserver.observe(playerHandRackRef.current, { childList: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer?.disconnect(); handObserver?.disconnect();
+      window.removeEventListener('resize', schedule);
+    };
+  }, []);
+
   const cardsPlayedThisTurnRef = useRef(0);
   const [selectedHandToReplaceIdx, setSelectedHandToReplaceIdx] = useState(null);
 
@@ -4004,15 +4044,17 @@ export default function ClassicBattleView({
 
 
                                     {/* FILA 3: ARMI GIOCATORE CON CORNICE STILE FELTRO TAVOLO DA POKER */}
-            <div style={{
+            <div ref={playerWeaponPanelsRef} style={{
               display: 'flex',
               justifyContent: 'space-between',
-              width: 'calc(100% + 40px)',
-              margin: '0 -20px 0 -20px',
+              // Solo traslazione verticale: bordo inferiore allineato a meta' mano giocatore.
+              width: 'calc(100% - 36px)',
+              margin: '0 18px',
               position: 'relative',
               top: '4px',
-              zIndex: 60,
-              transform: 'translateZ(60px)',
+              zIndex: 10,
+              transformOrigin: 'center top',
+              transform: 'none',
               boxSizing: 'border-box',
               pointerEvents: 'auto'
             }}>
@@ -4391,7 +4433,7 @@ export default function ClassicBattleView({
         </div>
 
                                 {/* 4. MANO DEL GIOCATORE */}
-        <div className="player-cards-section" style={{ top: '-20px', pointerEvents: 'none' }}>
+        <div className="player-cards-section" style={{ top: '-20px', pointerEvents: 'none', zIndex: 80 }}> 
 
 
 
@@ -4405,7 +4447,7 @@ export default function ClassicBattleView({
           )}
 
 
-                              <div className="wall-hand-rack player-side">
+                              <div ref={playerHandRackRef} className="wall-hand-rack player-side">
             {(playerHand || []).map((card, idx) => {
               const isPlacedOnTable = tableSlots.some(s => s && s === card);
               const isExchangeSelected = isExchangeMode && selectedExchangeIndices?.includes(idx);
