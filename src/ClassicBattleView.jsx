@@ -2348,7 +2348,8 @@ export default function ClassicBattleView({
       const viewportRect = viewport?.getBoundingClientRect();
       const screenScale = viewport && viewportRect && viewport.offsetWidth
         ? viewportRect.width / viewport.offsetWidth : 1;
-      const targetBottom = cardRect.top + cardRect.height / 2;
+      // R9.9: leggermente piu in alto: il bordo inferiore copre il primo quarto della mano.
+      const targetBottom = cardRect.top + cardRect.height * 0.25;
       const offset = (targetBottom - panelRect.bottom) / (screenScale || 1);
       panels.style.transform = `translateY(${Math.round(offset)}px)`;
     };
@@ -4048,8 +4049,8 @@ export default function ClassicBattleView({
               display: 'flex',
               justifyContent: 'space-between',
               // Solo traslazione verticale: bordo inferiore allineato a meta' mano giocatore.
-              width: 'calc(100% - 36px)',
-              margin: '0 18px',
+              width: 'calc(100% - 116px)',
+              margin: '0 58px',
               position: 'relative',
               top: '4px',
               zIndex: 10,
