@@ -2354,24 +2354,8 @@ export default function ClassicBattleView({
       const targetBottom = cardRect.top + cardRect.height * 0.25;
       const offset = (targetBottom - panelRect.bottom) / (screenScale || 1);
       panels.style.transform = `translateY(${Math.round(offset)}px)`;
-      // Allineamento orizzontale con i corrispondenti pannelli nemici.
-      // Misuriamo i centri reali dopo le trasformazioni 3D, non la larghezza teorica del flex.
-      const enemyBoxes = Array.from(enemy.children).slice(0, 2);
-      const playerBoxes = Array.from(panels.children).slice(0, 2);
-      if (enemyBoxes.length === 2 && playerBoxes.length === 2) {
-        const enemyCenters = enemyBoxes.map(el => { const r = el.getBoundingClientRect(); return r.left + r.width / 2; });
-        const boardCenter = (enemyCenters[0] + enemyCenters[1]) / 2;
-        playerBoxes.forEach((el, index) => {
-          el.style.transform = 'none';
-          const r = el.getBoundingClientRect();
-          const currentCenter = r.left + r.width / 2;
-          // Leggero rientro verso le cinque carte centrali rispetto alla linea nemica.
-          const targetCenter = enemyCenters[index] + (boardCenter - enemyCenters[index]) * 0.10;
-          const localScale = el.offsetWidth ? r.width / el.offsetWidth : screenScale;
-          const shift = (targetCenter - currentCenter) / (localScale || 1);
-          el.style.transform = `translateX(${Math.round(shift)}px)`;
-        });
-      }
+      // I due blocchi mantengono il posizionamento flex della riga nemica:
+      // niente trasformazioni individuali che possono annullarsi o disallinearli.
     };
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
     schedule();
@@ -4069,8 +4053,8 @@ export default function ClassicBattleView({
               display: 'flex',
               justifyContent: 'space-between',
               // Solo traslazione verticale: bordo inferiore allineato a meta' mano giocatore.
-              width: 'calc(100% - 116px)',
-              margin: '0 58px',
+              width: 'calc(100% + 40px)',
+              margin: '0 -20px',
               position: 'relative',
               top: '4px',
               zIndex: 10,
