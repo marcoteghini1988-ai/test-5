@@ -2330,6 +2330,7 @@ export default function ClassicBattleView({
 
   // Posiziona i pannelli giocatore dietro la mano: bordo inferiore a meta' carta.
   // Misura in coordinate schermo e converte in coordinate locali della plancia scalata.
+  const enemyWeaponPanelsRef = useRef(null);
   const playerWeaponPanelsRef = useRef(null);
   const playerHandRackRef = useRef(null);
   useEffect(() => {
@@ -2337,7 +2338,8 @@ export default function ClassicBattleView({
     const update = () => {
       const panels = playerWeaponPanelsRef.current;
       const hand = playerHandRackRef.current;
-      if (!panels || !hand) return;
+      const enemy = enemyWeaponPanelsRef.current;
+      if (!panels || !hand || !enemy) return;
       const card = hand.querySelector('.card-unit-station');
       if (!card) return;
       // Misura la posizione originale, evitando di sommare traslazioni successive.
@@ -2352,6 +2354,24 @@ export default function ClassicBattleView({
       const targetBottom = cardRect.top + cardRect.height * 0.25;
       const offset = (targetBottom - panelRect.bottom) / (screenScale || 1);
       panels.style.transform = `translateY(${Math.round(offset)}px)`;
+      // Allineamento orizzontale con i corrispondenti pannelli nemici.
+      // Misuriamo i centri reali dopo le trasformazioni 3D, non la larghezza teorica del flex.
+      const enemyBoxes = Array.from(enemy.children).slice(0, 2);
+      const playerBoxes = Array.from(panels.children).slice(0, 2);
+      if (enemyBoxes.length === 2 && playerBoxes.length === 2) {
+        const enemyCenters = enemyBoxes.map(el => { const r = el.getBoundingClientRect(); return r.left + r.width / 2; });
+        const boardCenter = (enemyCenters[0] + enemyCenters[1]) / 2;
+        playerBoxes.forEach((el, index) => {
+          el.style.transform = 'none';
+          const r = el.getBoundingClientRect();
+          const currentCenter = r.left + r.width / 2;
+          // Leggero rientro verso le cinque carte centrali rispetto alla linea nemica.
+          const targetCenter = enemyCenters[index] + (boardCenter - enemyCenters[index]) * 0.10;
+          const localScale = el.offsetWidth ? r.width / el.offsetWidth : screenScale;
+          const shift = (targetCenter - currentCenter) / (localScale || 1);
+          el.style.transform = `translateX(${Math.round(shift)}px)`;
+        });
+      }
     };
     const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
     schedule();
@@ -3734,7 +3754,7 @@ export default function ClassicBattleView({
           }}>
 
             {/* FILA 1: ARMI AVVERSARIO CON CORNICE STILE FELTRO TAVOLO DA POKER */}
-            <div style={{
+            <div ref={enemyWeaponPanelsRef} style={{
               display: 'flex',
               justifyContent: 'space-between',
               width: 'calc(100% + 40px)',
