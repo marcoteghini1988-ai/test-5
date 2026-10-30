@@ -201,7 +201,15 @@ export default function NewCombatPhase3Preview({ onClose, playerHand, playerDeck
   const boostValid=energy>=boostCost && selectedBoostCards.every(Boolean) &&
     checkBoostCalculation(selectedBoostCards[0],selectedBoostCards[1],boostOperation,target) && isPhase13BoostAllowed(game,{operation:boostOperation});
   const currentTier=BOOST_LEVELS.find(level=>level.cost===boostCost);
-  const canAttack = myTurn && draft.length && filledOriginal>=required && Boolean(chosenWeapon?.canFire) && (!boostEnabled || boostValid);
+  // La conferma dipende dagli slot vuoti effettivamente da riempire, non da 4
+  // carte obbligatorie a ogni turno. I piazzamenti extra sono facoltativi.
+  const boardPlacementCheck = useMemo(() => draft.length
+    ? applyBoardPlacements(game.board, draft, {
+        availableCardIds: game.player.hand.map(card => card.id),
+        blockedSlots: sealedSlots,
+      })
+    : { valid: false }, [game.board, game.player.hand, draft, sealedSlots]);
+  const canAttack = Boolean(myTurn && boardPlacementCheck.valid && chosenWeapon?.canFire && (!boostEnabled || boostValid));
   // Un orologio per fase, senza ripartire dopo i cambi. Le penalità riducono
   // soltanto il tempo personale; il conteggio dell'altro resta invariato.
   useEffect(() => {
@@ -339,7 +347,7 @@ export default function NewCombatPhase3Preview({ onClose, playerHand, playerDeck
         mode={pveMode?'PVE · POKER':pvpBotMode?'PVP · PILOTA IA':fixedLoadout?'SFIDA DEL GIORNO':campaignMode?'CAMPAGNA · POKER':'DUELLO POKER'}
         phase={game.phase} round={game.round} seconds={seconds} enemySeconds={enemySeconds} actor={game.actor} readyEnemy={Boolean(game.ready.enemy)}
         hp={game.phase===TURN_PHASES.ANIMATE && hpBeforeVolley ? hpBeforeVolley : game.hp} initialHp={game.initialHp} ammo={game.ammo}
-        playerEther={game.player.ether||0} playerMalus={game.phase16B?.player?.malusCharge||0}
+        boostTarget={target} boostEnergy={energy} boostEnabled={boostEnabled && boostValid} playerEther={game.player.ether||0} playerMalus={game.phase16B?.player?.malusCharge||0}
         enemyMalus={game.phase16B?.enemy?.malusCharge||0} playerModule={game.phase16F?.player}
         enemyModule={game.phase16F?.enemy} playerDice={game.phase16B?.player}
         enemyDice={game.phase16B?.enemy} goldenCard={game.player.hand.find(card=>card?.isGolden)}
