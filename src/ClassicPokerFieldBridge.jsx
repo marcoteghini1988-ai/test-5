@@ -17,7 +17,7 @@ export default function ClassicPokerFieldBridge({
   canAttack=false,canPlay=false,canPrepare=false,ready=false,exchangesLeft=0,comboLabel='',result=null,finished=false,
   onOpenSystems,systemsAvailable=false,playerEther=0,boostTarget=6,boostEnergy=0,boostEnabled=false,enemyMalus=0,playerMalus=0,
   playerModule=null,enemyModule=null,playerDice=null,enemyDice=null, goldenCard=null,
-  frozenClasses=[],volley=null,volleyOpener='player',aiPreviewSlots=[],aiStatus='ANALIZZA IL BANCO'
+  frozenClasses=[],volley=null,volleyOpener='player',moves=null,aiPreviewSlots=[],aiStatus='ANALIZZA IL BANCO'
 }) {
   const enemySide=playerSide==='player'?'enemy':'player';
   const allowedSystems=(canPlay||canPrepare)?onOpenSystems:undefined;
@@ -39,7 +39,7 @@ export default function ClassicPokerFieldBridge({
     const asset=def?.assets?.cardImageByLevel?.[level]||def?.assets?.cardImageByLevel?.[1];
     return {id:def?.id||`empty_poker_slot_${i}`,name:def?.name||(klass?'NESSUNA ARMA':'BOOST'),
       newPokerImage:asset||null,
-      icon:asset?<img src={asset} alt={def?.name} style={{width:29,height:27,objectFit:'contain'}}/>:(klass?'—':'⚡'),
+      icon:klass?(def?.visual?.icon || '◈'):'⚡',
       suit:physicalSuits[i], ammoSuit:def?.ammoSuit,
       ammo:ammoCount, themeColor:def?.rarityColor||colors[i],
       maxCapacity:Math.max(10,ammoCount), maxSalvo:10,
@@ -64,7 +64,7 @@ export default function ClassicPokerFieldBridge({
     onCardClick,onSlotClick,onPlaceCard,onAttack,onPass,onClear,onSwap,onReady,onFinish,onAbandon,
     onSelectWeapon,onOpenSystems:allowedSystems,
     exchangesLeft,comboLabel,round,phase,mode,systemsAvailable,
-    result,volley,volleyOpener,actor,aiPreviewSlots,aiStatus,boostTarget,boostEnergy,boostEnabled,
+    result,volley,volleyOpener,moves,actor,aiPreviewSlots,aiStatus,boostTarget,boostEnergy,boostEnabled,
   };
   return <ClassicBattleView
     pokerBridge={bridge}

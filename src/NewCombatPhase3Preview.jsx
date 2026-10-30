@@ -216,14 +216,17 @@ export default function NewCombatPhase3Preview({ onClose, playerHand, playerDeck
     const max = current.current.campaignEnvironment ? getPhase13Time(current.current) : getPhase3Time(current.current.phase);
     if (max == null) { setSeconds(null);setEnemySeconds(null);return; }
     setSeconds(max);setEnemySeconds(max);
-    const startedAt = Date.now();
+    // All'ingresso della prima partita si distribuiscono le carte PRIMA del timer.
+    // Gli altri turni mantengono i tempi originali (nessun ritardo aggiuntivo).
+    const firstDealDelay = game.round === 1 && game.phase === TURN_PHASES.ATTACK ? 1850 : 0;
+    const startedAt = Date.now() + firstDealDelay;
     let completed = false, pausedSince=null, pausedMs=0;
     const interval = setInterval(() => {
       const active = current.current;
       const now=Date.now();
       if(mobiusPauseRef.current){if(pausedSince===null)pausedSince=now;return;}
       if(pausedSince!==null){pausedMs+=now-pausedSince;pausedSince=null;}
-      const elapsed = (now-startedAt-pausedMs)/1000;
+      const elapsed = Math.max(0,(now-startedAt-pausedMs)/1000);
       if (active.phase===TURN_PHASES.PREPARE) {
         const playerLeft=getPhase6RemainingSeconds(active,'player',elapsed);
         setSeconds(playerLeft);
@@ -384,7 +387,7 @@ export default function NewCombatPhase3Preview({ onClose, playerHand, playerDeck
         ready={Boolean(game.ready.player)} comboLabel={combo?.label||''}
         result={game.phase===TURN_PHASES.FINISHED?{...result,winner:game.winner}:result}
         volley={game.phase===TURN_PHASES.ANIMATE ? game.result?.volleys : null}
-        volleyOpener={game.opener}
+        volleyOpener={game.opener} moves={game.moves}
         finished={game.phase===TURN_PHASES.FINISHED}
         onFinish={(campaignMode||pvpBotMode||pveMode)&&handoff?.ok&&duelAudit.ok&&!submittedCampaignResult.current?submitCampaignOutcome:null}
         systemsAvailable onOpenSystems={()=>{if(advancedToolsRef.current){advancedToolsRef.current.open=true;advancedToolsRef.current.scrollIntoView({behavior:'smooth',block:'start'});}}}

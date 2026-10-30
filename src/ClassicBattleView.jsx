@@ -11,24 +11,59 @@ import { WEAPONS_DATABASE } from './weaponsSystem';
 import { fireWeaponCombatVFX } from './weaponEffects';
 import PokerCombatEffects from './newCombat/PokerCombatEffects.jsx';
 
-// Mostra il PNG effettivo dell'arma per tutti e quattro gli slot, su entrambi i lati.
-// Il catalogo contiene i percorsi per livello: nessuna immagine generica al posto dell'arma.
+// Risoluzione immagini: Vite serve i file dentro public/ senza il prefisso "public".
+// Supporta sia la struttura canonica public/assets/weapons sia la cartella
+// public/armi usata nel repository GitHub, evitando slot vuoti per 404.
+function candidateWeaponArt(weapon, level) {
+  const def = WEAPONS_DATABASE.find(item => item.id === weapon?.id);
+  const entries = def?.levels || weapon?.levels || {};
+  const item = entries[level] || entries[1] || {};
+  const sources = [weapon?.newPokerImage, item.image, weapon?.imgUrl, def?.imgUrl, weapon?.image];
+  if (/^es_[a-z]+_(?:light|medium|heavy)_\d{2}$/.test(weapon?.id || '')) {
+    sources.push(`/assets/weapons/${weapon.id}_card.png`);
+  }
+  const urls = [];
+  const add = value => {
+    if (typeof value !== 'string' || !value || urls.includes(value)) return;
+    urls.push(value);
+  };
+  sources.forEach(src => {
+    if (typeof src !== 'string' || !src.trim()) return;
+    const normalized = `/${src.trim().replace(/^\/?public\//, '').replace(/^\/+/, '')}`;
+    const basename = normalized.split('/').pop();
+    add(normalized);
+    if (basename) {
+      add(`/assets/weapons/${basename}`);
+      add(`/armi/${basename}`);
+      add(`/armi/assets/weapons/${basename}`);
+    }
+  });
+  return urls;
+}
+
 function WeaponSlotArtwork({ weapon, level, ammo }) {
-  const [failedUrl, setFailedUrl] = useState(null);
-  const weaponDef = WEAPONS_DATABASE.find(item => item.id === weapon?.id);
-  const lvl = Math.max(1, Math.round(Number(level) || 1));
-  const levelEntries = weaponDef?.levels || weapon?.levels || {};
-  const levelData = levelEntries[lvl] || levelEntries[Math.max(...Object.keys(levelEntries).map(Number).filter(Number.isFinite), 1)] || levelEntries[1];
-  const url = weapon?.newPokerImage || levelData?.image || weaponDef?.imgUrl || weapon?.imgUrl || weapon?.image;
-  if (!url || failedUrl === url) return null;
-  return (
-    <div className="weapon-slot-artwork" style={{position:'absolute',inset:'1px',zIndex:8,pointerEvents:'none',borderRadius:'4px',overflow:'hidden',background:'#020b1c'}}>
-      <img src={url} alt={`${weapon?.name || 'Arma'} livello ${lvl}`} onError={() => setFailedUrl(url)}
-        style={{display:'block',width:'100%',height:'100%',objectFit:'fill',opacity:weapon?.isLocked ? .45 : 1}} />
-      {weapon?.isLocked ? <span style={{position:'absolute',inset:0,display:'grid',placeItems:'center',fontSize:'9px',fontWeight:900,color:'#fff',background:'rgba(0,0,0,.45)'}}>🔒</span> :
-        <span style={{position:'absolute',bottom:1,right:1,fontSize:'7px',fontWeight:900,background:'rgba(1,7,20,.88)',color:'#d7faff',padding:'0 3px',borderRadius:'2px'}}>📦{ammo}</span>}
-    </div>
-  );
+  const lvl = Math.max(1, Math.min(4, Math.round(Number(level) || 1)));
+  const candidates = useMemo(() => candidateWeaponArt(weapon, lvl), [weapon?.id, weapon?.newPokerImage, weapon?.imgUrl, weapon?.image, lvl]);
+  const [attempt, setAttempt] = useState(0);
+  const signature = candidates.join('|');
+  useEffect(() => setAttempt(0), [signature]);
+  const url = candidates[attempt];
+  const isBoost = !weapon?.weaponClass && (weapon?.slotIdx === 3 || /boost/i.test(weapon?.name || ''));
+  const hasEquippedWeapon = Boolean(weapon?.weaponClass || (weapon?.id && !String(weapon.id).startsWith('empty_poker_slot')));
+  if (!url) {
+    return <div className="weapon-slot-artwork weapon-art-fallback" aria-label={isBoost ? 'BOOST' : hasEquippedWeapon ? 'Immagine arma non disponibile' : 'Slot arma non equipaggiato'}>
+      <span className="weapon-art-fallback-icon">{isBoost ? '⚡' : weapon?.isLocked ? '🔒' : '◈'}</span>
+      <span className="weapon-art-fallback-label">{isBoost ? 'BOOST' : hasEquippedWeapon ? (weapon?.name || 'ARMA') : 'BLOCCATA'}</span>
+    </div>;
+  }
+  return <div className="weapon-slot-artwork" aria-label={`${weapon?.name || 'Arma'} livello ${lvl}`}>
+    <img key={url} src={url} alt={weapon?.name || 'Arma'} loading="eager" decoding="async" onError={() => setAttempt(i => Math.min(i + 1, candidates.length))} />
+    {weapon?.isLocked && <span className="weapon-art-locked">🔒</span>}
+    {!isBoost && !weapon?.isLocked && <>
+      <span className="weapon-art-ammo">{Number(ammo) || 0}</span>
+      <span className="weapon-art-capacity"><i style={{width:`${Math.max(0,Math.min(100,(Number(ammo)||0)/(Number(weapon?.maxCapacity)||10)*100))}%`}} /></span>
+    </>}
+  </div>;
 }
 
 // ============================================================================
@@ -570,6 +605,38 @@ export const calculateAiTurnClassic = (aiHand, objectives, activeAnomaly = null)
     .deal-item-hidden {
       opacity: 0 !important;
       pointer-events: none !important;
+    }
+
+
+    /* R12 — carte PNG e sovrapposizione: non cambiano i 44×60/62px degli slot. */
+    .weapon-slot-artwork {
+      position:absolute;inset:1px;z-index:8;pointer-events:none;
+      border-radius:4px;overflow:hidden;background:#030c1d;
+      display:flex;align-items:center;justify-content:center;
+    }
+    .weapon-slot-artwork img {display:block;width:100%;height:100%;object-fit:contain;object-position:center;}
+    .weapon-art-locked {position:absolute;inset:0;display:grid;place-items:center;
+      font-size:12px;background:rgba(1,7,15,.53);color:#fff;}
+    .weapon-art-ammo {position:absolute;right:1px;bottom:1px;padding:0 2px;
+      color:#dcffff;background:rgba(1,8,19,.87);border-radius:2px;font:900 8px Orbitron,sans-serif;}
+    .weapon-art-capacity {position:absolute;left:1px;right:1px;bottom:0;height:2px;
+      background:rgba(3,13,28,.9);border-radius:2px;overflow:hidden;}
+    .weapon-art-capacity i {height:100%;display:block;background:#5efcf9;box-shadow:0 0 5px #5efcf9;transition:width .28s ease;}
+    .weapon-art-fallback {flex-direction:column;gap:3px;text-align:center;padding:2px;box-sizing:border-box;
+      color:#b5e9f5;border:1px dashed rgba(103,232,249,.4);}
+    .weapon-art-fallback-icon {font-size:17px;filter:drop-shadow(0 0 4px #0ce7ef);}
+    .weapon-art-fallback-label {font:800 7px Orbitron,sans-serif;max-width:100%;
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    /* Distribuzione iniziale: ritmo più leggibile con un piccolo bagliore finale. */
+    .battle-viewport-classic .card-deal-from-deck,
+    .battle-viewport-classic .enemy-card-deal-from-deck {animation-duration:.57s!important;}
+    .battle-viewport-classic .weapon-deploy-anim,
+    .battle-viewport-classic .enemy-weapon-deploy-anim {animation-duration:.51s!important;}
+    @media (prefers-reduced-motion:reduce) {
+      .battle-viewport-classic .card-deal-from-deck,
+      .battle-viewport-classic .enemy-card-deal-from-deck,
+      .battle-viewport-classic .weapon-deploy-anim,
+      .battle-viewport-classic .enemy-weapon-deploy-anim {animation-duration:.01ms!important;animation-delay:0ms!important;}
     }
 
     /* 1. MESCOLAMENTO MAZZO */
@@ -3441,7 +3508,7 @@ export default function ClassicBattleView({
     <div className="classic-screen-wrapper">
       {/* LAYER TRASPARENTE PER I PROIETTILI VERSO LA BARRA HP */}
       <div id="classic-projectiles-layer" />
-      {pokerMode && pokerBridge?.phase==='animate' && <PokerCombatEffects key={`${pokerBridge.round}-volley`} volleys={pokerBridge.volley} opener={pokerBridge.volleyOpener} weapons={pokerBridge.weapons} enemyWeapons={pokerBridge.enemyWeapons} />}
+      {pokerMode && pokerBridge?.phase==='animate' && <PokerCombatEffects key={`${pokerBridge.round}-volley`} volleys={pokerBridge.volley} opener={pokerBridge.volleyOpener} weapons={pokerBridge.weapons} enemyWeapons={pokerBridge.enemyWeapons} moves={pokerBridge.moves} />}
 
       {!showCinematicSplash && currentTut && turn === 'player1' && (
         <div className="guided-hud-floating-strip">
