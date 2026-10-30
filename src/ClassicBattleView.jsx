@@ -11,45 +11,22 @@ import { WEAPONS_DATABASE } from './weaponsSystem';
 import { fireWeaponCombatVFX } from './weaponEffects';
 import PokerCombatEffects from './newCombat/PokerCombatEffects.jsx';
 
-// Le carte approvate sono PNG reali; l'immagine occupa lo slot già esistente.
-// Non si applica ad altre armi senza asset approvato.
-function GatlingSlotCard({ weapon, level, ammo }) {
-  if (weapon?.id !== 'wp_gatling' && !weapon?.newPokerImage) return null;
-  const visibleLevel = Math.min(4, Math.max(1, Math.round(Number(level) || 1)));
+// Mostra il PNG effettivo dell'arma per tutti e quattro gli slot, su entrambi i lati.
+// Il catalogo contiene i percorsi per livello: nessuna immagine generica al posto dell'arma.
+function WeaponSlotArtwork({ weapon, level, ammo }) {
+  const [failedUrl, setFailedUrl] = useState(null);
+  const weaponDef = WEAPONS_DATABASE.find(item => item.id === weapon?.id);
+  const lvl = Math.max(1, Math.round(Number(level) || 1));
+  const levelEntries = weaponDef?.levels || weapon?.levels || {};
+  const levelData = levelEntries[lvl] || levelEntries[Math.max(...Object.keys(levelEntries).map(Number).filter(Number.isFinite), 1)] || levelEntries[1];
+  const url = weapon?.newPokerImage || levelData?.image || weaponDef?.imgUrl || weapon?.imgUrl || weapon?.image;
+  if (!url || failedUrl === url) return null;
   return (
-    <div
-      className="gatling-approved-card"
-      aria-label={`${weapon?.name || 'Gatling Cinetica'}, livello ${visibleLevel}`}
-      style={{
-        position: 'absolute',
-        inset: '1px',
-        zIndex: 8,
-        pointerEvents: 'none',
-        borderRadius: '4px',
-        overflow: 'hidden',
-        background: '#020b1c'
-      }}
-    >
-      <img
-        src={weapon?.newPokerImage || `/assets/weapons/gatling_cinetica_lv${visibleLevel}.png`}
-        alt={`${weapon?.name || 'Gatling Cinetica'} livello ${visibleLevel}`}
-        style={{ display: 'block', width: '100%', height: '100%', objectFit: 'fill' }}
-      />
-      <span
-        style={{
-          position: 'absolute',
-          bottom: '1px',
-          right: '1px',
-          fontSize: '7px',
-          fontWeight: 900,
-          background: 'rgba(1,7,20,.88)',
-          color: '#d7faff',
-          padding: '0 3px',
-          borderRadius: '2px'
-        }}
-      >
-        📦{ammo}
-      </span>
+    <div className="weapon-slot-artwork" style={{position:'absolute',inset:'1px',zIndex:8,pointerEvents:'none',borderRadius:'4px',overflow:'hidden',background:'#020b1c'}}>
+      <img src={url} alt={`${weapon?.name || 'Arma'} livello ${lvl}`} onError={() => setFailedUrl(url)}
+        style={{display:'block',width:'100%',height:'100%',objectFit:'fill',opacity:weapon?.isLocked ? .45 : 1}} />
+      {weapon?.isLocked ? <span style={{position:'absolute',inset:0,display:'grid',placeItems:'center',fontSize:'9px',fontWeight:900,color:'#fff',background:'rgba(0,0,0,.45)'}}>🔒</span> :
+        <span style={{position:'absolute',bottom:1,right:1,fontSize:'7px',fontWeight:900,background:'rgba(1,7,20,.88)',color:'#d7faff',padding:'0 3px',borderRadius:'2px'}}>📦{ammo}</span>}
     </div>
   );
 }
@@ -3819,8 +3796,8 @@ export default function ClassicBattleView({
                       >
 
 
-                        <GatlingSlotCard weapon={wp} level={effectiveAiDeckLevel || 1} ammo={storedBullets} />
-                        {wp.id !== 'wp_gatling' && (<>                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', lineHeight: 1 }}>
+                        <WeaponSlotArtwork weapon={wp} level={effectiveAiDeckLevel || 1} ammo={storedBullets} />
+                        {!(WEAPONS_DATABASE.find(w => w.id === wp.id)?.levels?.[wp.currentLevel || effectiveAiDeckLevel || 1]?.image || wp.newPokerImage) && (<>                        <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', lineHeight: 1 }}>
                           <span style={{ fontSize: '0.65rem', fontWeight: 900, color: wp.themeColor }}>{formatCardSymbol({ suit: pokerMode ? (wp.ammoSuit || wp.suit) : wp.suit })}</span>
                           <span style={{ fontSize: '0.42rem', fontWeight: 900, color: '#fca5a5', background: 'rgba(0,0,0,0.6)', padding: '1px 2px', borderRadius: '2px' }}>
                             L.{effectiveAiDeckLevel || 1}
@@ -3910,7 +3887,7 @@ export default function ClassicBattleView({
                       >
 
 
-                        <GatlingSlotCard weapon={wp} level={effectiveAiDeckLevel || 1} ammo={storedBullets} />
+                        <WeaponSlotArtwork weapon={wp} level={effectiveAiDeckLevel || 1} ammo={storedBullets} />
                         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', lineHeight: 1 }}>
                           <span style={{ fontSize: '0.65rem', fontWeight: 900, color: wp.themeColor }}>{formatCardSymbol({ suit: pokerMode ? (wp.ammoSuit || wp.suit) : wp.suit })}</span>
                           <span style={{ fontSize: '0.42rem', fontWeight: 900, color: '#fca5a5', background: 'rgba(0,0,0,0.6)', padding: '1px 2px', borderRadius: '2px' }}>
@@ -4165,8 +4142,8 @@ export default function ClassicBattleView({
 
 
 
-                        <GatlingSlotCard weapon={wp} level={wp.currentLevel || 1} ammo={storedBullets} />
-                        {wp.id !== 'wp_gatling' && (<>
+                        <WeaponSlotArtwork weapon={wp} level={wp.currentLevel || 1} ammo={storedBullets} />
+                        {!(WEAPONS_DATABASE.find(w => w.id === wp.id)?.levels?.[wp.currentLevel || effectiveAiDeckLevel || 1]?.image || wp.newPokerImage) && (<>
                         {isFrozen && (
                           <div className="weapon-ice-overlay">
                             <span style={{ fontSize: '0.85rem', lineHeight: 1 }}>❄️</span>
@@ -4239,61 +4216,26 @@ export default function ClassicBattleView({
                   width: '100%',
                   zIndex: 40
                 }}>
-                  {resolvedWeapons.slice(2, 4).map((wp, subIdx) => {
-                    const isReadyToFire = pokerMode ? Boolean(pokerBridge.weaponOptions?.some(o=>o.weaponId===wp.id)) : Boolean(weaponTriggersMap[wp.id]);
+                  {pokerMode ? (
+                    <>
+                      <div style={{ width: '44px', height: '17px' }} aria-hidden="true" />
+                      <div title={`BOOST: raggiungi ${pokerBridge.boostTarget ?? 6} usando due carte. Energia ${pokerBridge.boostEnergy ?? 0}/45.`}
+                        onClick={(e) => { e.stopPropagation(); pokerBridge.onOpenSystems?.(); }}
+                        style={{width:'44px',textAlign:'center',padding:'2px 0',borderRadius:'4px',fontSize:'0.55rem',fontWeight:900,fontFamily:'Orbitron, sans-serif',lineHeight:1.1,
+                          color:pokerBridge.boostEnabled?'#fff':(pokerBridge.boostEnergy>=15?'#bbf7d0':pokerBridge.boostEnergy>0?'#fde68a':'#94a3b8'),
+                          background:pokerBridge.boostEnabled?'#047857':(pokerBridge.boostEnergy>=15?'#14532d':pokerBridge.boostEnergy>0?'#713f12':'#1e293b'),
+                          border:`1.5px solid ${pokerBridge.boostEnabled?'#6ee7b7':pokerBridge.boostEnergy>=15?'#22c55e':pokerBridge.boostEnergy>0?'#f59e0b':'#64748b'}`,
+                          cursor:'pointer',pointerEvents:'auto'}}>
+                        {pokerBridge.boostTarget ?? 6}
+                        <span style={{display:'block',fontSize:'0.38rem',lineHeight:1.2}}>{pokerBridge.boostEnabled?'ATTIVO':pokerBridge.boostEnergy>=15?'PRONTO':`${pokerBridge.boostEnergy ?? 0}/15`}</span>
+                      </div>
+                    </>
+                  ) : resolvedWeapons.slice(2, 4).map((wp, subIdx) => {
+                    const isReadyToFire = Boolean(weaponTriggersMap[wp.id]);
                     const isArmed = Boolean(visibleBestTrigger?.weapons?.some(w => w.id === wp.id));
                     const curOp = wp.mathOp || (subIdx === 0 ? '+' : '*');
-                    const curTarget = wp.target;
                     const opDisplay = curOp === '*' ? '×' : (curOp === '/' ? '÷' : curOp);
-                    const isBomb = Boolean(wp.isBomb);
-
-                                        const handleSelectThisBadge = (e) => {
-                      if (e) e.stopPropagation();
-                      if (pokerMode) { if(wp.weaponClass && pokerBridge.canPlay)pokerBridge.onSelectWeapon?.(wp.id);else pokerBridge.onOpenSystems?.();return; }
-                      if (isReadyToFire) {
-                        try { playSound('select'); } catch (_) {}
-                        setManuallySelectedWeaponId(wp.id);
-                      }
-                    };
-
-                    return (
-                      <div
-                        key={`calc_badge_${wp.id || subIdx}`}
-                        onClick={handleSelectThisBadge}
-
-                        style={{
-                          width: '44px',
-                          textAlign: 'center',
-                          padding: '2px 0',
-                          borderRadius: '4px',
-                          fontSize: '0.52rem',
-                          fontFamily: 'Orbitron, sans-serif',
-                          fontWeight: 900,
-                          lineHeight: 1.1,
-                          cursor: isReadyToFire ? 'pointer' : 'default',
-                          pointerEvents: 'auto',
-                          background: isArmed
-                            ? 'linear-gradient(180deg, #10b981 0%, #064e3b 100%)'
-                            : (isReadyToFire ? 'linear-gradient(180deg, #ca8a04 0%, #713f12 100%)' : (isBomb ? 'linear-gradient(180deg, #ef4444 0%, #7f1d1d 100%)' : 'rgba(15, 23, 42, 0.95)')),
-                          border: isArmed
-                            ? '2px solid #ffffff'
-                            : (isReadyToFire ? '2px solid #facc15' : (isBomb ? '1.5px solid #f87171' : '1.5px solid rgba(0, 242, 254, 0.5)')),
-                          color: isArmed ? '#ffffff' : (isReadyToFire ? '#fef08a' : (isBomb ? '#fef08a' : '#00f2fe')),
-                          boxShadow: isArmed
-                            ? '0 0 14px #10b981, 0 0 6px #ffffff'
-                            : (isReadyToFire ? '0 0 10px #facc15' : (isBomb ? '0 0 10px #ef4444' : '0 2px 6px rgba(0,0,0,0.8)')),
-                          transform: isArmed ? 'scale(1.08)' : 'none',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        {pokerMode ? (wp.weaponClass ? wp.weaponClass.toUpperCase().slice(0,3) : 'BOOST') : (isBomb ? `💥${opDisplay}${curTarget}` : `${opDisplay}${curTarget}`)}
-                        {isBomb && wp.turnsRemaining !== undefined && (
-                          <span style={{ display: 'block', fontSize: '0.40rem', color: '#fca5a5' }}>
-                            {wp.turnsRemaining}T
-                          </span>
-                        )}
-                      </div>
-                    );
+                    return <div key={`calc_badge_${wp.id || subIdx}`} style={{width:'44px',textAlign:'center',fontSize:'0.52rem',fontWeight:900,color:isArmed?'#fff':isReadyToFire?'#fef08a':'#00f2fe',background:'rgba(15,23,42,.95)',border:'1px solid #00f2fe',borderRadius:'4px'}}>{`${opDisplay}${wp.target}`}</div>;
                   })}
                 </div>
 
@@ -4384,8 +4326,8 @@ export default function ClassicBattleView({
 
 
 
-                        <GatlingSlotCard weapon={wp} level={wp.currentLevel || 1} ammo={storedBullets} />
-                        {wp.id !== 'wp_gatling' && (<>
+                        <WeaponSlotArtwork weapon={wp} level={wp.currentLevel || 1} ammo={storedBullets} />
+                        {!(WEAPONS_DATABASE.find(w => w.id === wp.id)?.levels?.[wp.currentLevel || effectiveAiDeckLevel || 1]?.image || wp.newPokerImage) && (<>
                         {isFrozen && (
                           <div className="weapon-ice-overlay">
                             <span style={{ fontSize: '0.85rem', lineHeight: 1 }}>❄️</span>
